@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+============================================================================
+THE ZYRATH INCIDENT - 3D Maze Survival Game
+============================================================================
+
+A THREE.js-based apocalyptic horror survival game featuring:
+- Procedurally generated mazes
+- Lane-based combat mechanics
+- Intelligent enemy AI
+- Weapon switching system
+- Dynamic difficulty
+
+TECHNICAL STACK:
+- THREE.js r150+ for 3D rendering
+- Vanilla JavaScript for game logic
+- CSS3 for UI styling
+- Web Audio API integration (disabled)
+
+UI ARCHITECTURE:
+- Group ID header
+- Top-left HUD (weapon, kills, ammo, light, time, enemies)
+- Loading screen with rotating tips
+- Game over and victory screens
+- Mobile controls for touch devices
+
+============================================================================
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Zyrath Incident - Apocalyptic Maze Runner</title>
+    
+    <!-- Google Fonts for horror-themed typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Metal+Mania&family=Rubik+Wet+Paint&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ====================================================================
+           GLOBAL STYLES & RESET
+           ==================================================================== */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Metal Mania', 'Courier New', monospace;
+            background: #0a0000;
+            color: #ff3333;
+            overflow: hidden;
+        }
+        
+        /* ====================================================================
+           GROUP ID HEADER
+           ==================================================================== */
+        
+        #groupId {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Nosifer', cursive;
+            font-size: 32px;
+            font-weight: bold;
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.5), 0 4px 8px rgba(0,0,0,0.9);
+            z-index: 1000;
+            background: rgba(20, 0, 0, 0.95);
+            padding: 12px 35px;
+            border: 3px solid #800000;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        
+        /* ====================================================================
+           GAME HUD (Heads-Up Display)
+           ==================================================================== */
+        
+        #hudTop {
+            position: absolute;
+            top: 80px;
+            left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 1000;
+        }
+        
+        .hud-section {
+            background: linear-gradient(135deg, rgba(40,0,0,0.9), rgba(20,0,0,0.95));
+            padding: 15px 25px;
+            border-radius: 10px;
+            border: 3px solid #800000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3), 0 4px 12px rgba(0,0,0,0.5);
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .hud-label {
+            font-family: 'Metal Mania', cursive;
+            font-size: 14px;
+            color: #ff6666;
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
+        }
+        
+        .hud-value {
+            font-family: 'Rubik Wet Paint', cursive;
+            font-size: 34px;
+            color: #ffcccc;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.9), 0 2px 8px rgba(0,0,0,0.8);
+        }
+        
+        #weaponName {
+            font-size: 22px;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 80px;
+            right: 30px;
+            background: linear-gradient(135deg, rgba(40,0,0,0.95), rgba(20,0,0,0.9));
+            padding: 18px;
+            border: 3px solid #800000;
+            border-radius: 10px;
+            z-index: 999;
+            max-width: 280px;
+            color: #ffcccc;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3), 0 4px 12px rgba(0,0,0,0.5);
+        }
+        
+        #controls h3 {
+            font-family: 'Creepster', cursive;
+            margin-bottom: 12px;
+            color: #ff3333;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            font-size: 20px;
+        }
+        
+        #controls p {
+            margin: 7px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ffaaaa;
+        }
+        
+        #modeToggle {
+            margin-top: 15px;
+            padding: 12px;
+            background: linear-gradient(135deg, #8b0000, #5a0000);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Metal Mania', cursive;
+            font-size: 14px;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        #modeToggle:hover {
+            background: linear-gradient(135deg, #a00000, #700000);
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.6);
+        }
+        
+        #stats {
+            display: none;
+        }
+        
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 999;
+        }
+        
+        #mobileControls.show {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(52, 152, 219, 0.8);
+            border: 2px solid #3498db;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .control-btn:active {
+            background: rgba(52, 152, 219, 1);
+            transform: scale(0.95);
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #gameOver {
+            position: fixed;
+            top: 50vh;
+            left: 50vw;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, rgba(0,0,0,0.95), rgba(20,0,0,0.98));
+            padding: 0;
+            border: 3px solid #ff0000;
+            border-radius: 12px;
+            z-index: 2000;
+            display: none;
+            text-align: center;
+            color: #ff3333;
+            box-shadow: 
+                0 0 50px rgba(255, 0, 0, 0.8), 
+                0 0 100px rgba(255, 0, 0, 0.3),
+                inset 0 0 20px rgba(0,0,0,0.9);
+            backdrop-filter: blur(5px);
+            overflow: hidden;
+            width: 450px;
+            height: 300px;
+            border-image: linear-gradient(45deg, #ff0000, #aa0000, #ff0000) 1;
+        }
+        
+        /* Subtle background pattern */
+        #gameOver::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255,0,0,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,0,0,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(255,0,0,0.05) 0%, transparent 50%);
+            z-index: 1;
+            opacity: 0.6;
+        }
+        
+        /* Simple decorative corners */
+        #gameOver::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            border-top: 2px solid rgba(255,0,0,0.5);
+            border-right: 2px solid rgba(255,0,0,0.5);
+            z-index: 1;
+        }
+        
+        /* Content container */
+        .game-over-content {
+            padding: 50px 30px 40px 30px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        #gameOver.show {
+            display: block;
+            animation: fadeInScale 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes fadeInScale {
+            0% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0.3) rotate(-5deg); 
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05) rotate(2deg);
+            }
+            100% { 
+                opacity: 1; 
+                transform: translate(-50%, -50%) scale(1) rotate(0deg); 
+            }
+        }
+        
+        #gameOver h2 {
+            font-family: 'Nosifer', cursive;
+            font-size: 48px;
+            text-shadow: 
+                0 0 15px rgba(255, 0, 0, 0.9),
+                0 0 30px rgba(255, 0, 0, 0.6),
+                0 2px 8px rgba(0,0,0,0.8);
+            margin: 0 0 20px 0;
+            color: #ff0000;
+            letter-spacing: 4px;
+            animation: titleGlow 3s ease-in-out infinite;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1;
+            position: relative;
+            z-index: 2;
+        }
+        
+        @keyframes titleGlow {
+            0%, 100% { 
+                text-shadow: 
+                    0 0 15px rgba(255, 0, 0, 0.9),
+                    0 0 30px rgba(255, 0, 0, 0.6),
+                    0 2px 8px rgba(0,0,0,0.8);
+                opacity: 1;
+            }
+            50% { 
+                text-shadow: 
+                    0 0 25px rgba(255, 0, 0, 1),
+                    0 0 50px rgba(255, 0, 0, 0.8),
+                    0 2px 8px rgba(0,0,0,0.8);
+                opacity: 0.9;
+            }
+        }
+        
+        .game-stats {
+            font-family: 'Metal Mania', cursive;
+            font-size: 18px;
+            margin: 25px 0 30px 0;
+            color: #ffcccc;
+            text-shadow: 0 0 8px rgba(255, 0, 0, 0.5), 0 1px 3px rgba(0,0,0,0.7);
+            line-height: 2;
+            animation: statsFadeIn 1s ease-out 0.5s both;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .stats-line {
+            margin: 8px 0;
+            font-size: 16px;
+            letter-spacing: 1px;
+            opacity: 0.9;
+        }
+        
+        .stats-line:first-child {
+            color: #ff9999;
+        }
+        
+        .stats-line:last-child {
+            color: #ff7777;
+        }
+        
+        @keyframes statsFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        #restartBtn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #cc0000, #990000);
+            color: #ffffff;
+            border: 2px solid #ff0000;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Metal Mania', cursive;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 
+                0 0 15px rgba(255, 0, 0, 0.3),
+                0 3px 8px rgba(0,0,0,0.5);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+            letter-spacing: 2px;
+            animation: buttonAppear 1.5s ease-out 0.8s both;
+            text-transform: uppercase;
+            display: inline-block;
+            position: relative;
+            z-index: 2;
+            min-width: 100px;
+            outline: none;
+        }
+        
+        #restartBtn:hover {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            box-shadow: 
+                0 0 25px rgba(255, 0, 0, 0.6),
+                0 4px 12px rgba(0,0,0,0.6);
+            transform: translateY(-2px);
+            border-color: #ff3333;
+        }
+        
+        #restartBtn:active {
+            transform: translateY(0px);
+            box-shadow: 
+                0 0 15px rgba(255, 0, 0, 0.5),
+                0 1px 4px rgba(0,0,0,0.7);
+            background: linear-gradient(135deg, #aa0000, #770000);
+        }
+        
+        @keyframes buttonAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        #gameOver p {
+            font-family: 'Metal Mania', cursive;
+            font-size: 32px;
+            margin: 20px 0;
+            color: #ff9999;
+            text-shadow: 
+                0 0 20px rgba(255, 0, 0, 0.8),
+                0 4px 8px rgba(0,0,0,0.9);
+            animation: fadeIn 0.8s ease-in 0.3s both;
+            line-height: 1.4;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Content container */
+        .game-over-content {
+            padding: 40px 30px 35px 30px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+        
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0000, #1a0000);
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #ff3333;
+        }
+        
+        #loadingScreen.hidden {
+            display: none !important;
+        }
+        
+        #loadingScreen h1 {
+            font-family: 'Nosifer', cursive;
+            font-size: 64px;
+            text-shadow: 0 0 40px rgba(255, 0, 0, 0.9), 0 0 80px rgba(255, 0, 0, 0.5);
+            margin-bottom: 30px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { text-shadow: 0 0 40px rgba(255, 0, 0, 0.9), 0 0 80px rgba(255, 0, 0, 0.5); }
+            50% { text-shadow: 0 0 60px rgba(255, 0, 0, 1), 0 0 100px rgba(255, 0, 0, 0.7); }
+        }
+        
+        #loadingScreen p {
+            font-family: 'Metal Mania', cursive;
+            font-size: 24px;
+            color: #ffcccc;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+        
+        @media (max-width: 768px) {
+            #mobileControls {
+                display: flex;
+            }
+            
+            #controls {
+                font-size: 10px;
+                padding: 10px;
+                max-width: 200px;
+            }
+            
+            #stats {
+                font-size: 10px;
+                padding: 10px;
+                min-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ====================================================================
+         LOADING SCREEN
+         Displayed during game initialization with rotating gameplay tips
+         ==================================================================== -->
+    <div id="loadingScreen">
+        <h1>THE ZYRATH INCIDENT</h1>
+        <p>Loading the nightmare...</p>
+        <p id="gameTip" style="position: absolute; bottom: 40px; font-size: 16px; color: #ff9999; font-style: italic;">"Use WASD to move through the maze"</p>
+    </div>
+    
+    <!-- Group Identifier Header -->
+    <div id="groupId">GROUP ID: 2077</div>
+    
+    <!-- ====================================================================
+         MAIN GAME HUD
+         Real-time display of player status and game metrics
+         ==================================================================== -->
+    <div id="hudTop">
+        <!-- Weapon Indicator -->
+        <div class="hud-section">
+            <div class="hud-label">⚔️ WEAPON</div>
+            <div class="hud-value" id="weaponName">🔪 KNIFE</div>
+        </div>
+        
+        <!-- Kill Counter -->
+        <div class="hud-section">
+            <div class="hud-label">🎯 KILLS</div>
+            <div class="hud-value" id="killCount">0</div>
+        </div>
+        
+        <!-- Coin Counter -->
+        <div class="hud-section">
+            <div class="hud-label">🪙 COINS</div>
+            <div class="hud-value" id="coinCount">0</div>
+        </div>
+        
+        <!-- Ammunition Display -->
+        <div class="hud-section">
+            <div class="hud-label">🔫 AMMO</div>
+            <div class="hud-value" id="ammoCount">∞</div>
+        </div>
+        
+        <!-- Flashlight Status -->
+        <div class="hud-section">
+            <div class="hud-label">💡 LIGHT</div>
+            <div class="hud-value" id="flashlightStatus">🔦 OFF</div>
+        </div>
+        
+        <!-- Elapsed Time -->
+        <div class="hud-section">
+            <div class="hud-label">⏱️ TIME</div>
+            <div class="hud-value" id="timeDisplay">0s</div>
+        </div>
+        
+        <!-- Remaining Enemies -->
+        <div class="hud-section">
+            <div class="hud-label">👾 ENEMIES LEFT</div>
+            <div class="hud-value" id="zombieCount">25</div>
+        </div>
+    </div>
+    
+    <!-- ====================================================================
+         CONTROL INSTRUCTIONS (Hidden by default per user preference)
+         ==================================================================== -->
+    <div id="controls" style="display: none;">
+        <h3>🎮 TOP-DOWN SHOOTER 🎮</h3>
+        <p><strong>WASD:</strong> Move</p>
+        <p><strong>SPACE/Click:</strong> Attack</p>
+        <p><strong>F:</strong> Toggle Flashlight</p>
+        <p><strong>🔪 Knife:</strong> Melee weapon</p>
+        <p><strong>Goal:</strong> Reach exit or kill all zombies!</p>
+        <button id="modeToggle">Switch to FULL MODE</button>
+    </div>
+    
+    <!-- ====================================================================
+         MISSION STATISTICS PANEL
+         ==================================================================== -->
+    <div id="stats">
+        <h3>📊 MISSION</h3>
+        <p>Mode: <span id="currentMode">PROTOTYPE</span></p>
+        <p>Distance: <span id="distanceDisplay">0m</span></p>
+        <p style="margin-top: 10px; font-size: 11px; opacity: 0.8;">Kill all zombies or reach the exit to win!</p>
+    </div>
+    
+    <!-- ====================================================================
+         MOBILE TOUCH CONTROLS
+         Auto-displayed on touch-enabled devices
+         ==================================================================== -->
+    <div id="mobileControls">
+        <div class="control-row">
+            <div class="control-btn" data-key="w">↑</div>
+        </div>
+        <div class="control-row">
+            <div class="control-btn" data-key="a">←</div>
+            <div class="control-btn" data-key="s">↓</div>
+            <div class="control-btn" data-key="d">→</div>
+        </div>
+    </div>
+    
+    <!-- ====================================================================
+         GAME OVER SCREEN
+         Displayed on player death with session statistics and restart option
+         ==================================================================== -->
+    <div id="gameOver">
+        <div class="game-over-content">
+            <h2 id="gameOverTitle">DEVOURED</h2>
+            <div class="game-stats">
+                <div class="stats-line" id="survivalTime">Survived: 0s</div>
+                <div class="stats-line" id="killStats">Kills: 0</div>
+            </div>
+            <button id="restartBtn">RETRY</button>
+        </div>
+    </div>
+    
+    <!-- ====================================================================
+         EXTERNAL DEPENDENCIES
+         ==================================================================== -->
+    
+    <!-- THREE.js r150 - Core 3D rendering engine -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    
+    <!-- Main game logic and engine -->
+    <script src="js/game.js"></script>
+</body>
+</html>
