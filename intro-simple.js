@@ -1,3 +1,4 @@
+// Generated through AI
 /**
  * ============================================================================
  * THE ZYRATH INCIDENT - Simplified Text-Only Intro
